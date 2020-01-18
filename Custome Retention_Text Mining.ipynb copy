@@ -1,0 +1,1072 @@
+{
+  "nbformat": 4,
+  "nbformat_minor": 0,
+  "metadata": {
+    "colab": {
+      "name": "Assignment_5.ipynb",
+      "provenance": [],
+      "collapsed_sections": []
+    },
+    "kernelspec": {
+      "name": "python3",
+      "display_name": "Python 3"
+    },
+    "accelerator": "GPU"
+  },
+  "cells": [
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "w1hDk9hDvOH7",
+        "colab_type": "code",
+        "outputId": "adc6850e-1b66-4ee9-dc9b-87cb44cdd935",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 207
+        }
+      },
+      "source": [
+        "\n",
+        "import pandas as pd\n",
+        "import numpy as np\n",
+        "\n",
+        "from sklearn.feature_extraction.text import CountVectorizer\n",
+        "from sklearn.feature_extraction.text import TfidfTransformer\n",
+        "#from sklearn.feature_extraction.text import TfidfVectorizer\n",
+        "\n",
+        "#NLTK-------------------------------\n",
+        "import nltk\n",
+        "nltk.download('punkt')\n",
+        "from nltk.tokenize import word_tokenize\n",
+        "from nltk.stem.snowball import SnowballStemmer\n",
+        "from nltk.stem.porter import PorterStemmer\n",
+        "from nltk.stem.lancaster import LancasterStemmer\n",
+        "from sklearn.model_selection import train_test_split\n",
+        "from mlxtend.feature_selection import SequentialFeatureSelector as sfs\n",
+        "from nltk.corpus import stopwords\n",
+        "#from nltk.stemporter import PorterStemmer\n",
+        "\n",
+        "# Import libraries for feature \n",
+        "from sklearn.feature_selection import SelectKBest\n",
+        "from sklearn.feature_selection import chi2\n",
+        "\n",
+        "\n",
+        "from sklearn.ensemble import GradientBoostingClassifier\n",
+        "from sklearn.tree import DecisionTreeClassifier\n",
+        "from sklearn.ensemble import RandomForestClassifier\n",
+        "from sklearn.neural_network import MLPClassifier\n",
+        "from sklearn.svm import SVC\n",
+        "from sklearn.metrics import confusion_matrix,classification_report\n",
+        "from sklearn import metrics\n",
+        "\n",
+        "import warnings\n",
+        "warnings.filterwarnings(\"ignore\")\n",
+        "\n",
+        "\n",
+        "from google.colab import drive\n",
+        "drive.mount('/gdrive')\n",
+        "#Change current working directory to gdrive\n",
+        "%cd /gdrive\n"
+      ],
+      "execution_count": 1,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "[nltk_data] Downloading package punkt to /root/nltk_data...\n",
+            "[nltk_data]   Unzipping tokenizers/punkt.zip.\n"
+          ],
+          "name": "stdout"
+        },
+        {
+          "output_type": "stream",
+          "text": [
+            "/usr/local/lib/python3.6/dist-packages/sklearn/externals/joblib/__init__.py:15: DeprecationWarning: sklearn.externals.joblib is deprecated in 0.21 and will be removed in 0.23. Please import this functionality directly from joblib, which can be installed with: pip install joblib. If this warning is raised when loading pickled models, you may need to re-serialize those models with scikit-learn 0.21+.\n",
+            "  warnings.warn(msg, category=DeprecationWarning)\n"
+          ],
+          "name": "stderr"
+        },
+        {
+          "output_type": "stream",
+          "text": [
+            "Go to this URL in a browser: https://accounts.google.com/o/oauth2/auth?client_id=947318989803-6bn6qk8qdgf4n4g3pfee6491hc0brc4i.apps.googleusercontent.com&redirect_uri=urn%3aietf%3awg%3aoauth%3a2.0%3aoob&response_type=code&scope=email%20https%3a%2f%2fwww.googleapis.com%2fauth%2fdocs.test%20https%3a%2f%2fwww.googleapis.com%2fauth%2fdrive%20https%3a%2f%2fwww.googleapis.com%2fauth%2fdrive.photos.readonly%20https%3a%2f%2fwww.googleapis.com%2fauth%2fpeopleapi.readonly\n",
+            "\n",
+            "Enter your authorization code:\n",
+            "··········\n",
+            "Mounted at /gdrive\n",
+            "/gdrive\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "BMwGQK7KAd7T",
+        "colab_type": "code",
+        "outputId": "0d515c2a-cd49-4ae7-d6f6-c9c00a7bca2f",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 51
+        }
+      },
+      "source": [
+        "#Read files\n",
+        "textfile = r'/gdrive/My Drive/CIS508/5/Comments.csv'\n",
+        "textData = pd.read_csv(textfile) #creates a dataframe\n",
+        "\n",
+        "CustInfofile = r'/gdrive/My Drive/CIS508/5/Customers.csv'\n",
+        "CustInfoData = pd.read_csv(CustInfofile)  #creates a dataframe\n",
+        "\n",
+        "print(textData.shape)\n",
+        "print(CustInfoData.shape)\n"
+      ],
+      "execution_count": 2,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "(2070, 2)\n",
+            "(2070, 17)\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "SWOTk6C1Ao45",
+        "colab_type": "code",
+        "outputId": "7b622bcb-2792-4f91-ac25-d383b9d10a03",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 493
+        }
+      },
+      "source": [
+        "#Extract target column from Customer Info file\n",
+        "y_train = CustInfoData[\"TARGET\"]\n",
+        "X_train = CustInfoData.drop(columns=[\"TARGET\"]) #extracting training data without the target column\n",
+        "                     \n",
+        "print(X_train.shape)\n",
+        "print(textData.shape)\n",
+        "textData.head()\n",
+        "print(X_train)\n",
+        "print(y_train)"
+      ],
+      "execution_count": 3,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "(2070, 16)\n",
+            "(2070, 2)\n",
+            "        ID Sex Status  ...  Paymethod  LocalBilltype LongDistanceBilltype\n",
+            "0        1   F      S  ...         CC         Budget       Intnl_discount\n",
+            "1        6   M      M  ...         CH      FreeLocal             Standard\n",
+            "2        8   M      M  ...         CC      FreeLocal             Standard\n",
+            "3       11   M      S  ...         CC         Budget             Standard\n",
+            "4       14   F      M  ...         CH         Budget       Intnl_discount\n",
+            "...    ...  ..    ...  ...        ...            ...                  ...\n",
+            "2065  3821   F      S  ...         CC      FreeLocal             Standard\n",
+            "2066  3822   F      S  ...       Auto         Budget             Standard\n",
+            "2067  3823   F      M  ...         CH         Budget             Standard\n",
+            "2068  3824   F      M  ...         CC      FreeLocal             Standard\n",
+            "2069  3825   F      S  ...         CC      FreeLocal             Standard\n",
+            "\n",
+            "[2070 rows x 16 columns]\n",
+            "0       Cancelled\n",
+            "1         Current\n",
+            "2         Current\n",
+            "3         Current\n",
+            "4       Cancelled\n",
+            "          ...    \n",
+            "2065    Cancelled\n",
+            "2066    Cancelled\n",
+            "2067    Cancelled\n",
+            "2068    Cancelled\n",
+            "2069    Cancelled\n",
+            "Name: TARGET, Length: 2070, dtype: object\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "6NHZBJBRIIhC",
+        "colab_type": "text"
+      },
+      "source": [
+        "**SNOWBALL STEMMER**"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "cuWYNz2Ep17l",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "# Use English stemmer\n",
+        "stemmer1 = SnowballStemmer(\"english\")\n",
+        "\n",
+        "#Tokenize - Split the sentences to lists of words\n",
+        "textData['CommentsTokenized'] = textData['Comments'].apply(word_tokenize)\n",
+        "\n",
+        "export_csv = textData.to_csv(r'/gdrive/My Drive/CIS508/5/TextDataTokenized1_Snow.csv')\n",
+        "\n",
+        "#Now do stemming - create a new dataframe to store stemmed version\n",
+        "newTextData1=pd.DataFrame()\n",
+        "newTextData1=textData.drop(columns=[\"CommentsTokenized\",\"Comments\"])\n",
+        "newTextData1['CommentsTokenizedStemmed'] = textData['CommentsTokenized'].apply(lambda x: [stemmer1.stem(y) for y in x]) # Stem every word.\n",
+        "\n",
+        "export_csv = newTextData1.to_csv(r'/gdrive/My Drive/CIS508/5/newTextDataTS_Snow.csv')\n",
+        "\n",
+        "#Join stemmed strings\n",
+        "newTextData1['CommentsTokenizedStemmed'] = newTextData1['CommentsTokenizedStemmed'].apply(lambda x: \" \".join(x))\n",
+        "\n",
+        "export_csv = newTextData1.to_csv(r'/gdrive/My Drive/CIS508/5/newTextData-Joined_Snow.csv')\n",
+        "\n"
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "WiBguQloljam",
+        "colab_type": "code",
+        "outputId": "c8c14dea-68de-4a63-82ca-72bc1d84db90",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 309
+        }
+      },
+      "source": [
+        "#Do Bag-Of-Words model - Term - Document Matrix\n",
+        "#Learn the vocabulary dictionary and return term-document matrix.\n",
+        "\n",
+        "count_vect = CountVectorizer(stop_words='english',lowercase=False)\n",
+        "TD_counts1 = count_vect.fit_transform(newTextData1.CommentsTokenizedStemmed)\n",
+        "\n",
+        "TD_counts1.dtype\n",
+        "print(count_vect.get_feature_names())\n",
+        "print(\"No. of stem words in SNOWBALL stemmer is : \",len(count_vect.get_feature_names()))\n",
+        "DF_TD_Counts=pd.DataFrame(TD_counts1.toarray())\n",
+        "print(DF_TD_Counts)\n",
+        "export_csv = DF_TD_Counts.to_csv(r'/gdrive/My Drive/CIS508/5/TD_counts-TokenizedStemmed.csv')\n"
+      ],
+      "execution_count": 5,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "['3399', '3g', 'abysm', 'access', 'accessori', 'adapt', 'add', 'addit', 'additon', 'address', 'adit', 'adress', 'advertis', 'afraid', 'alway', 'angel', 'angri', 'ani', 'anoth', 'anyth', 'anytim', 'area', 'asap', 'ask', 'bad', 'basic', 'bateri', 'batteri', 'becaus', 'believ', 'better', 'bigger', 'book', 'bought', 'brain', 'bring', 'built', 'busi', 'button', 'buy', 'cancel', 'cancer', 'car', 'care', 'carrier', 'caus', 'cc', 'cell', 'certain', 'chang', 'charg', 'charger', 'check', 'chip', 'citi', 'claim', 'cleariti', 'cold', 'comapr', 'compani', 'compar', 'competit', 'complain', 'complaint', 'concept', 'connect', 'consisit', 'consist', 'constan', 'contact', 'continu', 'contract', 'correct', 'cost', 'coupl', 'cover', 'coverag', 'creat', 'credit', 'cstmer', 'cstmr', 'current', 'cust', 'custom', 'customr', 'date', 'day', 'dead', 'decent', 'defect', 'deo', 'did', 'die', 'differ', 'difficult', 'digiti', 'direct', 'disabl', 'doe', 'don', 'dont', 'drop', 'dure', 'easier', 'effect', 'encount', 'end', 'enemi', 'equip', 'everytim', 'everywher', 'evrey', 'exact', 'expect', 'expir', 'explain', 'facepl', 'fals', 'famili', 'featur', 'fed', 'figur', 'fine', 'fix', 'forev', 'forward', 'friend', 'function', 'furthermor', 'futur', 'gave', 'goat', 'good', 'great', 'gsm', 'handset', 'happi', 'hard', 'hate', 'hear', 'heard', 'help', 'higher', 'highway', 'hochi', 'hole', 'home', 'hope', 'horribl', 'hous', 'implement', 'improv', 'inadequ', 'includ', 'info', 'inform', 'ing', 'internet', 'intersect', 'issu', 'june', 'just', 'kid', 'kno', 'know', 'lame', 'later', 'lctn', 'learn', 'leroy', 'like', 'line', 'list', 'local', 'locat', 'locatn', 'long', 'los', 'lost', 'lot', 'love', 'major', 'make', 'manag', 'mani', 'manual', 'market', 'mean', 'messag', 'metropolitian', 'minut', 'misl', 'mistak', 'model', 'momma', 'mr', 'napeleon', 'near', 'nearest', 'need', 'network', 'new', 'news', 'notic', 'number', 'numer', 'offer', 'old', 'om', 'open', 'option', 'ori', 'ot', 'outbound', 'pass', 'pay', 'pda', 'peopl', 'perform', 'person', 'phone', 'piec', 'plan', 'pleas', 'point', 'polici', 'poor', 'possibl', 'probabl', 'problem', 'proper', 'provid', 'provis', 'purpos', 'rate', 'rater', 'realiz', 'realli', 'reason', 'receiv', 'recept', 'recption', 'reenter', 'refer', 'relat', 'rep', 'replac', 'respect', 'result', 'rid', 'right', 'ring', 'roam', 'roll', 'rubbish', 'rude', 'said', 'sale', 'say', 'screen', 'self', 'send', 'servic', 'shitti', 'shut', 'sign', 'signal', 'signific', 'simm', 'simpli', 'sinc', 'site', 'slow', 'sold', 'someon', 'sometim', 'soon', 'speak', 'speed', 'start', 'static', 'stole', 'store', 'stuff', 'stupid', 'substant', 'subtract', 'suck', 'suggest', 'supervisor', 'support', 'sure', 'surpris', 'suspect', 'suspend', 'switch', 'teach', 'technic', 'tell', 'terribl', 'test', 'text', 'think', 'thought', 'ticket', 'till', 'time', 'tire', 'today', 'toilet', 'told', 'tone', 'tower', 'transeff', 'transf', 'transfer', 'travel', 'tri', 'trust', 'turn', 'uncomfort', 'understand', 'unhappi', 'unlimit', 'unreli', 'unwil', 'upset', 'usag', 'use', 'useless', 'valu', 'veri', 'vm', 'wa', 'wait', 'want', 'wast', 'way', 'weak', 'web', 'websit', 'week', 'whi', 'wife', 'wish', 'wll', 'wold', 'work', 'wors', 'worst', 'wrong', 'xvyx', 'year', 'york']\n",
+            "No. of stem words in SNOWBALL stemmer is :  354\n",
+            "      0    1    2    3    4    5    6    ...  347  348  349  350  351  352  353\n",
+            "0       0    0    0    0    0    0    0  ...    1    0    0    0    0    0    0\n",
+            "1       0    0    0    0    1    0    0  ...    0    0    0    0    0    0    0\n",
+            "2       0    0    0    0    0    0    0  ...    0    0    0    0    0    0    0\n",
+            "3       0    0    0    0    0    0    0  ...    0    0    0    0    0    0    0\n",
+            "4       0    0    0    0    0    0    0  ...    0    0    0    0    0    0    0\n",
+            "...   ...  ...  ...  ...  ...  ...  ...  ...  ...  ...  ...  ...  ...  ...  ...\n",
+            "2065    0    0    0    0    0    0    0  ...    0    0    0    0    0    0    0\n",
+            "2066    0    0    0    0    0    0    0  ...    0    0    0    0    0    0    0\n",
+            "2067    0    0    0    0    0    0    0  ...    0    0    0    0    0    0    0\n",
+            "2068    0    0    0    0    0    0    0  ...    0    0    0    0    0    0    0\n",
+            "2069    0    0    0    0    0    0    0  ...    0    0    0    0    0    0    0\n",
+            "\n",
+            "[2070 rows x 354 columns]\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "30UtRc5sIQ6L",
+        "colab_type": "text"
+      },
+      "source": [
+        "**PORTER STEMMER**"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "u1HgxPMCIcDN",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "# Use English stemmer.\n",
+        "stemmer2 = PorterStemmer()\n",
+        "#Tokenize - Split the sentences to lists of words\n",
+        "textData['CommentsTokenized'] = textData['Comments'].apply(word_tokenize)\n",
+        "\n",
+        "export_csv = textData.to_csv(r'/gdrive/My Drive/CIS508/5/TextDataTokenized1_porter.csv')\n",
+        "\n",
+        "#Now do stemming - create a new dataframe to store stemmed version\n",
+        "newTextData2=pd.DataFrame()\n",
+        "newTextData2=textData.drop(columns=[\"CommentsTokenized\",\"Comments\"])\n",
+        "newTextData2['CommentsTokenizedStemmed'] = textData['CommentsTokenized'].apply(lambda x: [stemmer2.stem(y) for y in x]) # Stem every word.\n",
+        "\n",
+        "export_csv = newTextData2.to_csv(r'/gdrive/My Drive/CIS508/5/newTextDataTS_porter.csv')\n",
+        "\n",
+        "#Join stemmed strings\n",
+        "newTextData2['CommentsTokenizedStemmed'] = newTextData2['CommentsTokenizedStemmed'].apply(lambda x: \" \".join(x))\n",
+        "\n",
+        "export_csv = newTextData2.to_csv(r'/gdrive/My Drive/CIS508/5/newTextData-Joined_porter.csv')"
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "Ul7FhKoenMb8",
+        "colab_type": "code",
+        "outputId": "779af72d-0528-4f9b-bd7d-21fe8cd4aa64",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 309
+        }
+      },
+      "source": [
+        "#Do Bag-Of-Words model - Term - Document Matrix\n",
+        "#Learn the vocabulary dictionary and return term-document matrix.\n",
+        "#count_vect = CountVectorizer(stop_words=None)\n",
+        "count_vect = CountVectorizer(stop_words='english',lowercase=False)\n",
+        "TD_counts2 = count_vect.fit_transform(newTextData2.CommentsTokenizedStemmed)\n",
+        "#print(TD_counts2.shape)\n",
+        "TD_counts2.dtype\n",
+        "print(count_vect.get_feature_names())\n",
+        "print(\"No. of stem words in PORTER stemmer is : \",len(count_vect.get_feature_names()))\n",
+        "#print(TD_counts1)\n",
+        "DF_TD_Counts=pd.DataFrame(TD_counts2.toarray())\n",
+        "print(DF_TD_Counts)\n",
+        "export_csv = DF_TD_Counts.to_csv(r'/gdrive/My Drive/CIS508/5/TD_counts-TokenizedStemmed.csv')"
+      ],
+      "execution_count": 7,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "['3399', '3g', 'As', 'CC', 'He', 'If', 'In', 'Is', 'It', 'We', 'abysm', 'access', 'accessori', 'adapt', 'add', 'addit', 'additon', 'address', 'adit', 'adress', 'advertis', 'afraid', 'alway', 'angel', 'angri', 'ani', 'anoth', 'anyth', 'anytim', 'area', 'asap', 'ask', 'bad', 'basic', 'bateri', 'batteri', 'becaus', 'believ', 'better', 'bigger', 'book', 'bought', 'brain', 'bring', 'built', 'busi', 'button', 'buy', 'cancel', 'cancer', 'car', 'care', 'carrier', 'caus', 'cc', 'cell', 'certain', 'chang', 'charg', 'charger', 'check', 'chip', 'citi', 'claim', 'cleariti', 'cold', 'comapr', 'compani', 'compar', 'competit', 'complain', 'complaint', 'concept', 'connect', 'consisit', 'consist', 'constanli', 'contact', 'continu', 'contract', 'correct', 'cost', 'coupl', 'cover', 'coverag', 'creat', 'credit', 'cstmer', 'cstmr', 'current', 'cust', 'custom', 'customr', 'date', 'day', 'dead', 'decent', 'defect', 'deo', 'did', 'die', 'differ', 'difficult', 'digiti', 'direct', 'disabl', 'doe', 'don', 'dont', 'drop', 'dure', 'easier', 'effect', 'encount', 'end', 'enemi', 'equip', 'everytim', 'everywher', 'evrey', 'exactli', 'expect', 'expir', 'explain', 'facepl', 'fals', 'famili', 'featur', 'fed', 'figur', 'fine', 'fix', 'forev', 'forward', 'friend', 'function', 'furthermor', 'futur', 'gave', 'goat', 'good', 'great', 'gsm', 'ha', 'handset', 'happi', 'hard', 'hardli', 'hate', 'hear', 'heard', 'help', 'hi', 'higher', 'highway', 'hochi', 'hole', 'home', 'hope', 'horribl', 'hous', 'implement', 'improv', 'inadequ', 'includ', 'info', 'inform', 'ing', 'internet', 'intersect', 'issu', 'june', 'just', 'kid', 'kno', 'know', 'lame', 'later', 'lctn', 'learn', 'leroy', 'like', 'line', 'list', 'lo', 'local', 'locat', 'locatn', 'long', 'lost', 'lot', 'love', 'major', 'make', 'manag', 'mani', 'manual', 'market', 'mean', 'messag', 'metropolitian', 'minut', 'misl', 'mistak', 'model', 'momma', 'mr', 'napeleon', 'near', 'nearest', 'need', 'network', 'new', 'news', 'notic', 'number', 'numer', 'offer', 'old', 'om', 'open', 'option', 'ori', 'ot', 'outbound', 'pass', 'pay', 'pda', 'peopl', 'perform', 'person', 'phone', 'piec', 'plan', 'pleas', 'point', 'polici', 'poor', 'possibl', 'probabl', 'problem', 'properli', 'provid', 'provis', 'purpos', 'rate', 'rater', 'realiz', 'realli', 'reason', 'receiv', 'recept', 'recption', 'reenter', 'refer', 'relat', 'rep', 'replac', 'respect', 'result', 'rid', 'right', 'ring', 'roam', 'roll', 'rubbish', 'rude', 'said', 'sale', 'say', 'screen', 'self', 'send', 'servic', 'shitti', 'shut', 'sign', 'signal', 'significantli', 'simm', 'simpli', 'sinc', 'site', 'slow', 'sold', 'someon', 'sometim', 'soon', 'speak', 'speed', 'start', 'static', 'stole', 'store', 'stuff', 'stupid', 'substant', 'subtract', 'suck', 'suggest', 'supervisor', 'support', 'sure', 'surpris', 'suspect', 'suspend', 'switch', 'teach', 'technic', 'tell', 'terribl', 'test', 'text', 'thi', 'think', 'thought', 'ticket', 'till', 'time', 'tire', 'today', 'toilet', 'told', 'tone', 'tower', 'transeff', 'transf', 'transfer', 'travel', 'tri', 'trust', 'turn', 'uncomfort', 'understand', 'unhappi', 'unlimit', 'unreli', 'unwil', 'upset', 'usag', 'use', 'useless', 'valu', 'veri', 'vm', 'wa', 'wait', 'want', 'wast', 'way', 'weak', 'web', 'websit', 'week', 'whi', 'wife', 'wish', 'wll', 'wold', 'work', 'wors', 'worst', 'wrong', 'xvyx', 'year', 'york']\n",
+            "No. of stem words in PORTER stemmer is :  366\n",
+            "      0    1    2    3    4    5    6    ...  359  360  361  362  363  364  365\n",
+            "0       0    0    0    0    0    0    0  ...    1    0    0    0    0    0    0\n",
+            "1       0    0    0    0    0    0    0  ...    0    0    0    0    0    0    0\n",
+            "2       0    0    0    0    0    0    0  ...    0    0    0    0    0    0    0\n",
+            "3       0    0    0    0    0    0    0  ...    0    0    0    0    0    0    0\n",
+            "4       0    0    0    0    0    0    0  ...    0    0    0    0    0    0    0\n",
+            "...   ...  ...  ...  ...  ...  ...  ...  ...  ...  ...  ...  ...  ...  ...  ...\n",
+            "2065    0    0    0    0    0    0    0  ...    0    0    0    0    0    0    0\n",
+            "2066    0    0    0    0    2    0    0  ...    0    0    0    0    0    0    0\n",
+            "2067    0    0    0    0    0    0    0  ...    0    0    0    0    0    0    0\n",
+            "2068    0    0    0    0    0    0    0  ...    0    0    0    0    0    0    0\n",
+            "2069    0    0    0    0    2    0    0  ...    0    0    0    0    0    0    0\n",
+            "\n",
+            "[2070 rows x 366 columns]\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "jA-CHr-PLakM",
+        "colab_type": "text"
+      },
+      "source": [
+        "**LANCASTER STEMMER**"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "ChZDd9YzLexg",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "# Use English stemmer.\n",
+        "stemmer3 = LancasterStemmer()\n",
+        "#Tokenize - Split the sentences to lists of words\n",
+        "textData['CommentsTokenized'] = textData['Comments'].apply(word_tokenize)\n",
+        "\n",
+        "export_csv = textData.to_csv(r'/gdrive/My Drive/CIS508/5/TextDataTokenized1_lancaster.csv')\n",
+        "\n",
+        "#Now do stemming - create a new dataframe to store stemmed version\n",
+        "newTextData=pd.DataFrame()\n",
+        "newTextData=textData.drop(columns=[\"CommentsTokenized\",\"Comments\"])\n",
+        "newTextData['CommentsTokenizedStemmed'] = textData['CommentsTokenized'].apply(lambda x: [stemmer3.stem(y) for y in x]) # Stem every word.\n",
+        "\n",
+        "export_csv = newTextData.to_csv(r'/gdrive/My Drive/CIS508/5/newTextDataTS_lancaster.csv')\n",
+        "\n",
+        "#Join stemmed strings\n",
+        "newTextData['CommentsTokenizedStemmed'] = newTextData['CommentsTokenizedStemmed'].apply(lambda x: \" \".join(x))\n",
+        "\n",
+        "export_csv = newTextData.to_csv(r'/gdrive/My Drive/CIS508/5/newTextData-Joined_lancaster.csv')"
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "WG1bQptrnWTi",
+        "colab_type": "code",
+        "outputId": "d2b1935b-307a-4c01-a5a4-f6b329c6df82",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 309
+        }
+      },
+      "source": [
+        "#Do Bag-Of-Words model - Term - Document Matrix\n",
+        "#Learn the vocabulary dictionary and return term-document matrix.\n",
+        "#count_vect = CountVectorizer(stop_words=None)\n",
+        "count_vect = CountVectorizer(stop_words='english',lowercase=False)\n",
+        "TD_counts3 = count_vect.fit_transform(newTextData.CommentsTokenizedStemmed)\n",
+        "#print(TD_counts3.shape)\n",
+        "TD_counts3.dtype\n",
+        "print(count_vect.get_feature_names())\n",
+        "print(\"No. of stem words in LANCASTER stemmer is : \",len(count_vect.get_feature_names()))\n",
+        "#print(TD_counts3)\n",
+        "DF_TD_Counts=pd.DataFrame(TD_counts3.toarray())\n",
+        "print(DF_TD_Counts)\n",
+        "export_csv = DF_TD_Counts.to_csv(r'/gdrive/My Drive/CIS508/5/TD_counts-TokenizedStemmed.csv')"
+      ],
+      "execution_count": 9,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "['3399', '3g', 'abysm', 'access', 'ad', 'adapt', 'addit', 'additon', 'address', 'adit', 'adress', 'advert', 'afraid', 'aft', 'al', 'alway', 'angel', 'angry', 'anoth', 'anyth', 'anytim', 'ar', 'asap', 'ask', 'bad', 'bas', 'batery', 'battery', 'becaus', 'believ', 'bet', 'big', 'bil', 'book', 'bought', 'brain', 'bring', 'built', 'busy', 'button', 'buy', 'cal', 'cancel', 'car', 'carry', 'caus', 'cc', 'cel', 'certain', 'chang', 'charg', 'check', 'chip', 'city', 'claim', 'clear', 'cold', 'comapr', 'comp', 'company', 'competit', 'complain', 'complaint', 'conceiv', 'connect', 'consisit', 'consist', 'const', 'contact', 'continu', 'contract', 'correct', 'cost', 'coupl', 'cov', 'cre', 'credit', 'cstmer', 'cstmr', 'cur', 'cust', 'custom', 'customr', 'dat', 'day', 'dead', 'dec', 'defect', 'deo', 'did', 'die', 'diff', 'difficult', 'digit', 'direct', 'dis', 'doe', 'don', 'dont', 'drop', 'dur', 'dying', 'easy', 'effect', 'encount', 'end', 'enemy', 'equip', 'ev', 'everytim', 'everywh', 'evrey', 'exact', 'expect', 'expir', 'explain', 'facepl', 'fals', 'famy', 'feat', 'fed', 'fig', 'fin', 'fix', 'forev', 'forward', 'friend', 'funct', 'furtherm', 'fut', 'gav', 'giv', 'goat', 'going', 'good', 'gre', 'gsm', 'handset', 'happy', 'hard', 'hat', 'hav', 'hear', 'heard', 'help', 'high', 'highway', 'hochy', 'hol', 'hom', 'hop', 'horr', 'hous', 'impl', 'improv', 'inadequ', 'includ', 'info', 'inform', 'ing', 'internet', 'intersect', 'issu', 'jun', 'just', 'kid', 'kno', 'know', 'lam', 'lat', 'lctn', 'learn', 'leroy', 'lik', 'lin', 'list', 'loc', 'locatn', 'long', 'los', 'lost', 'lot', 'lov', 'mad', 'maj', 'mak', 'man', 'market', 'mean', 'mess', 'metropolit', 'minut', 'misl', 'mistak', 'model', 'momm', 'mor', 'mov', 'mr', 'napeleon', 'near', 'nearest', 'nee', 'network', 'nev', 'new', 'num', 'numb', 'oft', 'old', 'omer', 'op', 'opt', 'ory', 'ot', 'oth', 'outbound', 'ov', 'pass', 'pay', 'pda', 'peopl', 'perform', 'person', 'phon', 'piec', 'plan', 'pleas', 'point', 'policy', 'poor', 'poss', 'prob', 'problem', 'prop', 'provid', 'purpos', 'rat', 'real', 'reason', 'receiv', 'recpt', 'reent', 'refer', 'rel', 'rep', 'replac', 'respect', 'result', 'rid', 'right', 'ring', 'roam', 'rol', 'rub', 'rud', 'said', 'sal', 'sam', 'say', 'screening', 'self', 'send', 'serv', 'shitty', 'shut', 'sign', 'sim', 'simply', 'sint', 'sit', 'slow', 'sold', 'som', 'someon', 'sometim', 'soon', 'speak', 'spee', 'start', 'stat', 'stil', 'stol', 'stor', 'stuff', 'stupid', 'subst', 'subtract', 'suck', 'suggest', 'superv', 'support', 'sur', 'surpr', 'suspect', 'suspend', 'switch', 'tak', 'teach', 'techn', 'tel', 'terr', 'test', 'text', 'ther', 'thes', 'thi', 'think', 'thos', 'thought', 'ticket', 'til', 'tim', 'tir', 'today', 'toilet', 'told', 'ton', 'tow', 'transeff', 'transf', 'transfer', 'travel', 'tri', 'trust', 'try', 'turn', 'uncomfort', 'understand', 'unhappy', 'unlimit', 'unrely', 'unwil', 'upset', 'useless', 'valu', 'vm', 'wa', 'wait', 'want', 'wast', 'way', 'weak', 'web', 'websit', 'week', 'wel', 'wer', 'wher', 'wheth', 'whol', 'wif', 'wil', 'wish', 'wll', 'wold', 'work', 'wors', 'worst', 'wrong', 'xvyx', 'year', 'yo', 'york']\n",
+            "No. of stem words in LANCASTER stemmer is :  364\n",
+            "      0    1    2    3    4    5    6    ...  357  358  359  360  361  362  363\n",
+            "0       0    0    0    0    0    0    0  ...    0    0    0    0    0    0    0\n",
+            "1       0    0    0    1    0    0    0  ...    0    0    0    0    0    0    0\n",
+            "2       0    0    0    0    0    0    0  ...    0    0    0    0    0    0    0\n",
+            "3       0    0    0    0    0    0    0  ...    0    0    0    0    0    0    0\n",
+            "4       0    0    0    0    0    0    0  ...    0    0    0    0    0    0    0\n",
+            "...   ...  ...  ...  ...  ...  ...  ...  ...  ...  ...  ...  ...  ...  ...  ...\n",
+            "2065    0    0    0    0    0    0    0  ...    0    0    0    0    0    0    0\n",
+            "2066    0    0    0    0    0    0    0  ...    0    0    0    0    0    0    0\n",
+            "2067    0    0    0    0    0    0    0  ...    0    0    0    0    0    0    0\n",
+            "2068    0    0    0    0    0    0    0  ...    0    0    0    0    0    0    0\n",
+            "2069    0    0    0    0    0    0    0  ...    0    0    0    0    0    0    0\n",
+            "\n",
+            "[2070 rows x 364 columns]\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "pd8TZYnAxQbP",
+        "colab_type": "code",
+        "outputId": "5a9f00e7-f0bf-42c6-8069-275bf1fcffaf",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 272
+        }
+      },
+      "source": [
+        "#Compute TF-IDF Matrix\n",
+        "tfidf_transformer = TfidfTransformer()\n",
+        "X_train_tfidf = tfidf_transformer.fit_transform(TD_counts2)\n",
+        "print(X_train_tfidf.shape)\n",
+        "DF_TF_IDF=pd.DataFrame(X_train_tfidf.toarray())\n",
+        "print(DF_TF_IDF)\n",
+        "#export_csv= DF_TF_IDF.to_csv(r'/gdrive/My Drive/DataMining-1/Assignment-5/TFIDF_counts-TokenizedStemmed.csv')\n"
+      ],
+      "execution_count": 10,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "(2070, 366)\n",
+            "      0    1    2    3         4    5    ...  360  361  362  363  364  365\n",
+            "0     0.0  0.0  0.0  0.0  0.000000  0.0  ...  0.0  0.0  0.0  0.0  0.0  0.0\n",
+            "1     0.0  0.0  0.0  0.0  0.000000  0.0  ...  0.0  0.0  0.0  0.0  0.0  0.0\n",
+            "2     0.0  0.0  0.0  0.0  0.000000  0.0  ...  0.0  0.0  0.0  0.0  0.0  0.0\n",
+            "3     0.0  0.0  0.0  0.0  0.000000  0.0  ...  0.0  0.0  0.0  0.0  0.0  0.0\n",
+            "4     0.0  0.0  0.0  0.0  0.000000  0.0  ...  0.0  0.0  0.0  0.0  0.0  0.0\n",
+            "...   ...  ...  ...  ...       ...  ...  ...  ...  ...  ...  ...  ...  ...\n",
+            "2065  0.0  0.0  0.0  0.0  0.000000  0.0  ...  0.0  0.0  0.0  0.0  0.0  0.0\n",
+            "2066  0.0  0.0  0.0  0.0  0.407251  0.0  ...  0.0  0.0  0.0  0.0  0.0  0.0\n",
+            "2067  0.0  0.0  0.0  0.0  0.000000  0.0  ...  0.0  0.0  0.0  0.0  0.0  0.0\n",
+            "2068  0.0  0.0  0.0  0.0  0.000000  0.0  ...  0.0  0.0  0.0  0.0  0.0  0.0\n",
+            "2069  0.0  0.0  0.0  0.0  0.407251  0.0  ...  0.0  0.0  0.0  0.0  0.0  0.0\n",
+            "\n",
+            "[2070 rows x 366 columns]\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "6tuJEeqX6T-p",
+        "colab_type": "text"
+      },
+      "source": [
+        "**Filter type feature selection**"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "m2owIUD6_eYO",
+        "colab_type": "code",
+        "outputId": "efedbb73-4b8f-4ad7-80fa-cd330646ee37",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 255
+        }
+      },
+      "source": [
+        "#Feature selection\n",
+        "new_DF_TF_IDF = SelectKBest(score_func=chi2, k=50).fit_transform(DF_TF_IDF,y_train)\n",
+        "new_DF_TF_IDF.shape\n",
+        "\n",
+        "DF_TF_IDF_SelectedFeatures= pd.DataFrame(new_DF_TF_IDF)\n",
+        "print(DF_TF_IDF_SelectedFeatures)"
+      ],
+      "execution_count": 11,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "       0         1    2    3    4    5   ...   44   45        46   47   48   49\n",
+            "0     0.0  0.000000  0.0  0.0  0.0  0.0  ...  0.0  0.0  0.000000  0.0  0.0  0.0\n",
+            "1     0.0  0.000000  0.0  0.0  0.0  0.0  ...  0.0  0.0  0.000000  0.0  0.0  0.0\n",
+            "2     0.0  0.000000  0.0  0.0  0.0  0.0  ...  0.0  0.0  0.000000  0.0  0.0  0.0\n",
+            "3     0.0  0.000000  0.0  0.0  0.0  0.0  ...  0.0  0.0  0.000000  0.0  0.0  0.0\n",
+            "4     0.0  0.000000  0.0  0.0  0.0  0.0  ...  0.0  0.0  0.348322  0.0  0.0  0.0\n",
+            "...   ...       ...  ...  ...  ...  ...  ...  ...  ...       ...  ...  ...  ...\n",
+            "2065  0.0  0.000000  0.0  0.0  0.0  0.0  ...  0.0  0.0  0.000000  0.0  0.0  0.0\n",
+            "2066  0.0  0.000000  0.0  0.0  0.0  0.0  ...  0.0  0.0  0.000000  0.0  0.0  0.0\n",
+            "2067  0.0  0.000000  0.0  0.0  0.0  0.0  ...  0.0  0.0  0.000000  0.0  0.0  0.0\n",
+            "2068  0.0  0.772949  0.0  0.0  0.0  0.0  ...  0.0  0.0  0.000000  0.0  0.0  0.0\n",
+            "2069  0.0  0.000000  0.0  0.0  0.0  0.0  ...  0.0  0.0  0.000000  0.0  0.0  0.0\n",
+            "\n",
+            "[2070 rows x 50 columns]\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "Fq_7eeQOz7xk",
+        "colab_type": "code",
+        "outputId": "2cf8549e-ebe2-4f7f-a3cb-bd3b733891fb",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 289
+        }
+      },
+      "source": [
+        "#Merge files\n",
+        "\n",
+        "print(CustInfoData.shape)\n",
+        "combined=pd.concat([CustInfoData,DF_TF_IDF_SelectedFeatures], axis=1)\n",
+        "print(combined.shape)\n",
+        "print(combined)"
+      ],
+      "execution_count": 12,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "(2070, 17)\n",
+            "(2070, 67)\n",
+            "        ID Sex Status  Children  Est_Income  ...   45        46   47   48   49\n",
+            "0        1   F      S         1    38000.00  ...  0.0  0.000000  0.0  0.0  0.0\n",
+            "1        6   M      M         2    29616.00  ...  0.0  0.000000  0.0  0.0  0.0\n",
+            "2        8   M      M         0    19732.80  ...  0.0  0.000000  0.0  0.0  0.0\n",
+            "3       11   M      S         2       96.33  ...  0.0  0.000000  0.0  0.0  0.0\n",
+            "4       14   F      M         2    52004.80  ...  0.0  0.348322  0.0  0.0  0.0\n",
+            "...    ...  ..    ...       ...         ...  ...  ...       ...  ...  ...  ...\n",
+            "2065  3821   F      S         0    78851.30  ...  0.0  0.000000  0.0  0.0  0.0\n",
+            "2066  3822   F      S         1    17540.70  ...  0.0  0.000000  0.0  0.0  0.0\n",
+            "2067  3823   F      M         0    83891.90  ...  0.0  0.000000  0.0  0.0  0.0\n",
+            "2068  3824   F      M         2    28220.80  ...  0.0  0.000000  0.0  0.0  0.0\n",
+            "2069  3825   F      S         0    28589.10  ...  0.0  0.000000  0.0  0.0  0.0\n",
+            "\n",
+            "[2070 rows x 67 columns]\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "EPmJYiWrPkRG",
+        "colab_type": "code",
+        "outputId": "23f2da9e-bdd5-4b43-e366-2a99fe13f918",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 51
+        }
+      },
+      "source": [
+        "#Do one Hot encoding for categorical features\n",
+        "categorical_features = [\"Sex\",\"Status\",\"Car_Owner\",\"Paymethod\",\"LocalBilltype\",\"LongDistanceBilltype\"]\n",
+        "#X_cat = combined.select_dtypes(exclude=['int','float64'])\n",
+        "print(categorical_features)\n",
+        "combined_one_hot = pd.get_dummies(combined,columns=categorical_features)\n",
+        "print(combined_one_hot.shape)\n",
+        "export_csv= combined_one_hot.to_csv(r'/gdrive/My Drive/CIS508/5/combined_one_hot.csv')\n",
+        "\n"
+      ],
+      "execution_count": 13,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "['Sex', 'Status', 'Car_Owner', 'Paymethod', 'LocalBilltype', 'LongDistanceBilltype']\n",
+            "(2070, 75)\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "AJEWj_witnih",
+        "colab_type": "text"
+      },
+      "source": [
+        "**Splitting Training and Test data**"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "guKOqjvgtmob",
+        "colab_type": "code",
+        "outputId": "b20e7062-f4fd-438b-fe0a-94c5fcf97a1c",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 425
+        }
+      },
+      "source": [
+        "X_train1, X_test1, y_train1, y_test1 = train_test_split(combined_one_hot.drop(columns=[\"TARGET\"]), combined_one_hot[\"TARGET\"], test_size=0.20, random_state=42)\n",
+        "print('Training dataset shape:', X_train1.shape, y_train1)\n",
+        "print('Testing dataset shape:', X_test1.shape, y_test1)\n"
+      ],
+      "execution_count": 14,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "Training dataset shape: (1656, 74) 849       Current\n",
+            "1043    Cancelled\n",
+            "175       Current\n",
+            "1228      Current\n",
+            "538     Cancelled\n",
+            "          ...    \n",
+            "1638      Current\n",
+            "1095      Current\n",
+            "1130      Current\n",
+            "1294      Current\n",
+            "860       Current\n",
+            "Name: TARGET, Length: 1656, dtype: object\n",
+            "Testing dataset shape: (414, 74) 1181      Current\n",
+            "69        Current\n",
+            "351     Cancelled\n",
+            "1163    Cancelled\n",
+            "429       Current\n",
+            "          ...    \n",
+            "1532      Current\n",
+            "1671      Current\n",
+            "416       Current\n",
+            "2023      Current\n",
+            "1428      Current\n",
+            "Name: TARGET, Length: 414, dtype: object\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "geVCLka8xxjf",
+        "colab_type": "code",
+        "outputId": "716ca671-58fb-4051-a6da-3d24c20f8d4b",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 255
+        }
+      },
+      "source": [
+        "#Construct a Random Forest Classifier on text data\n",
+        "clf=RandomForestClassifier()\n",
+        "RF_text = clf.fit(X_train1,y_train1)\n",
+        "print(\"Accuracy score (training): {0:.6f}\".format(clf.score(X_test1, y_test1)))\n",
+        "rf_predictions = clf.predict(X_test1)\n",
+        "print(\"Confusion Matrix:\")\n",
+        "print(confusion_matrix(y_test1, rf_predictions))\n",
+        "print(\"Classification Report\")\n",
+        "print(classification_report(y_test1, rf_predictions))"
+      ],
+      "execution_count": 15,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "Accuracy score (training): 0.850242\n",
+            "Confusion Matrix:\n",
+            "[[127  30]\n",
+            " [ 32 225]]\n",
+            "Classification Report\n",
+            "              precision    recall  f1-score   support\n",
+            "\n",
+            "   Cancelled       0.80      0.81      0.80       157\n",
+            "     Current       0.88      0.88      0.88       257\n",
+            "\n",
+            "    accuracy                           0.85       414\n",
+            "   macro avg       0.84      0.84      0.84       414\n",
+            "weighted avg       0.85      0.85      0.85       414\n",
+            "\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "TUFl6GsD1-b7",
+        "colab_type": "code",
+        "outputId": "8333c5df-d130-48b0-b897-98633613c019",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 255
+        }
+      },
+      "source": [
+        "#Construct a  Decision Tree Classifier on text data\n",
+        "clf=DecisionTreeClassifier()\n",
+        "RF_text = clf.fit(X_train1,y_train1)\n",
+        "print(\"Accuracy score (training): {0:.6f}\".format(clf.score(X_test1, y_test1)))\n",
+        "rf_predictions = clf.predict(X_test1)\n",
+        "print(\"Confusion Matrix:\")\n",
+        "print(confusion_matrix(y_test1, rf_predictions))\n",
+        "print(\"Classification Report\")\n",
+        "print(classification_report(y_test1, rf_predictions))"
+      ],
+      "execution_count": 16,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "Accuracy score (training): 0.828502\n",
+            "Confusion Matrix:\n",
+            "[[123  34]\n",
+            " [ 37 220]]\n",
+            "Classification Report\n",
+            "              precision    recall  f1-score   support\n",
+            "\n",
+            "   Cancelled       0.77      0.78      0.78       157\n",
+            "     Current       0.87      0.86      0.86       257\n",
+            "\n",
+            "    accuracy                           0.83       414\n",
+            "   macro avg       0.82      0.82      0.82       414\n",
+            "weighted avg       0.83      0.83      0.83       414\n",
+            "\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "1Var6m43ccID",
+        "colab_type": "code",
+        "outputId": "946609aa-e1b7-40c0-d556-8eb15d9f7ce5",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 255
+        }
+      },
+      "source": [
+        "#Construct a GRADIENT BOOSTING Classifier on text data\n",
+        "clf=GradientBoostingClassifier()\n",
+        "RF_text = clf.fit(X_train1,y_train1)\n",
+        "print(\"Accuracy score (training): {0:.6f}\".format(clf.score(X_test1, y_test1)))\n",
+        "rf_predictions = clf.predict(X_test1)\n",
+        "print(\"Confusion Matrix:\")\n",
+        "print(confusion_matrix(y_test1, rf_predictions))\n",
+        "print(\"Classification Report\")\n",
+        "print(classification_report(y_test1, rf_predictions))"
+      ],
+      "execution_count": 17,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "Accuracy score (training): 0.845411\n",
+            "Confusion Matrix:\n",
+            "[[115  42]\n",
+            " [ 22 235]]\n",
+            "Classification Report\n",
+            "              precision    recall  f1-score   support\n",
+            "\n",
+            "   Cancelled       0.84      0.73      0.78       157\n",
+            "     Current       0.85      0.91      0.88       257\n",
+            "\n",
+            "    accuracy                           0.85       414\n",
+            "   macro avg       0.84      0.82      0.83       414\n",
+            "weighted avg       0.84      0.85      0.84       414\n",
+            "\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "1ZeTlWqy3uHE",
+        "colab_type": "text"
+      },
+      "source": [
+        "**Wraper type feature selection - Random Forest**"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "VhsGusZy30dj",
+        "colab_type": "code",
+        "outputId": "dab4e9c6-381d-46ad-a6bc-b6f031ea6312",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 374
+        }
+      },
+      "source": [
+        "# Build RF classifier to use in feature selection\n",
+        "clf = RandomForestClassifier()\n",
+        "\n",
+        "# Build step forward feature selection\n",
+        "sfs1 = sfs(clf,\n",
+        "           k_features=5,\n",
+        "           forward=True,\n",
+        "           floating=False,\n",
+        "           verbose=2,\n",
+        "           scoring='accuracy',\n",
+        "           cv=5)\n",
+        "\n",
+        "# Perform SFFS\n",
+        "sfs1 = sfs1.fit(DF_TF_IDF,y_train)"
+      ],
+      "execution_count": 18,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "[Parallel(n_jobs=1)]: Using backend SequentialBackend with 1 concurrent workers.\n",
+            "[Parallel(n_jobs=1)]: Done   1 out of   1 | elapsed:    0.1s remaining:    0.0s\n",
+            "[Parallel(n_jobs=1)]: Done 366 out of 366 | elapsed:   28.7s finished\n",
+            "\n",
+            "[2019-12-14 04:07:21] Features: 1/5 -- score: 0.6159469643320449[Parallel(n_jobs=1)]: Using backend SequentialBackend with 1 concurrent workers.\n",
+            "[Parallel(n_jobs=1)]: Done   1 out of   1 | elapsed:    0.1s remaining:    0.0s\n",
+            "[Parallel(n_jobs=1)]: Done 365 out of 365 | elapsed:   28.8s finished\n",
+            "\n",
+            "[2019-12-14 04:07:50] Features: 2/5 -- score: 0.6198105401921403[Parallel(n_jobs=1)]: Using backend SequentialBackend with 1 concurrent workers.\n",
+            "[Parallel(n_jobs=1)]: Done   1 out of   1 | elapsed:    0.1s remaining:    0.0s\n",
+            "[Parallel(n_jobs=1)]: Done 364 out of 364 | elapsed:   29.1s finished\n",
+            "\n",
+            "[2019-12-14 04:08:19] Features: 3/5 -- score: 0.6222201618348328[Parallel(n_jobs=1)]: Using backend SequentialBackend with 1 concurrent workers.\n",
+            "[Parallel(n_jobs=1)]: Done   1 out of   1 | elapsed:    0.1s remaining:    0.0s\n",
+            "[Parallel(n_jobs=1)]: Done 363 out of 363 | elapsed:   29.9s finished\n",
+            "\n",
+            "[2019-12-14 04:08:49] Features: 4/5 -- score: 0.6241572022025006[Parallel(n_jobs=1)]: Using backend SequentialBackend with 1 concurrent workers.\n",
+            "[Parallel(n_jobs=1)]: Done   1 out of   1 | elapsed:    0.1s remaining:    0.0s\n",
+            "[Parallel(n_jobs=1)]: Done 362 out of 362 | elapsed:   30.1s finished\n",
+            "\n",
+            "[2019-12-14 04:09:19] Features: 5/5 -- score: 0.6256041381372773"
+          ],
+          "name": "stderr"
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "I9JiMb0h4H8J",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "# Which features?\n",
+        "feat_cols = list(sfs1.k_feature_idx_)\n",
+        "print(feat_cols)\n",
+        "SF=DF_TF_IDF.iloc[:,feat_cols]\n",
+        "print(SF)"
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "mv5ycsInRpXC",
+        "colab_type": "code",
+        "outputId": "be6fbf39-fb1c-4f2b-ebb9-3a1b1b4e1e0f",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 289
+        }
+      },
+      "source": [
+        "#Merge files\n",
+        "print(CustInfoData.shape)\n",
+        "combined=pd.concat([CustInfoData,SF], axis=1)\n",
+        "print(combined.shape)\n",
+        "print(combined)\n",
+        "#export_csv= combined.to_csv(r'/gdrive/My Drive/CIS508/Combined-Cust+TFIDF+SelectedFeatures.csv')\n"
+      ],
+      "execution_count": 20,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "(2070, 17)\n",
+            "(2070, 22)\n",
+            "        ID Sex Status  Children  Est_Income  ...   22   96  233  250  265\n",
+            "0        1   F      S         1    38000.00  ...  0.0  0.0  0.0  0.0  0.0\n",
+            "1        6   M      M         2    29616.00  ...  0.0  0.0  0.0  0.0  0.0\n",
+            "2        8   M      M         0    19732.80  ...  0.0  0.0  0.0  0.0  0.0\n",
+            "3       11   M      S         2       96.33  ...  0.0  0.0  0.0  0.0  0.0\n",
+            "4       14   F      M         2    52004.80  ...  0.0  0.0  0.0  0.0  0.0\n",
+            "...    ...  ..    ...       ...         ...  ...  ...  ...  ...  ...  ...\n",
+            "2065  3821   F      S         0    78851.30  ...  0.0  0.0  0.0  0.0  0.0\n",
+            "2066  3822   F      S         1    17540.70  ...  0.0  0.0  0.0  0.0  0.0\n",
+            "2067  3823   F      M         0    83891.90  ...  0.0  0.0  0.0  0.0  0.0\n",
+            "2068  3824   F      M         2    28220.80  ...  0.0  0.0  0.0  0.0  0.0\n",
+            "2069  3825   F      S         0    28589.10  ...  0.0  0.0  0.0  0.0  0.0\n",
+            "\n",
+            "[2070 rows x 22 columns]\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "qpIZt6ZrR5uH",
+        "colab_type": "code",
+        "outputId": "814e75d3-574d-4394-fa01-45e8e6b418aa",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 51
+        }
+      },
+      "source": [
+        "#Do one Hot encoding for categorical features\n",
+        "categorical_features = [\"Sex\",\"Status\",\"Car_Owner\",\"Paymethod\",\"LocalBilltype\",\"LongDistanceBilltype\"]\n",
+        "#X_cat = combined.select_dtypes(exclude=['int','float64'])\n",
+        "print(categorical_features)\n",
+        "combined_one_hot = pd.get_dummies(combined,columns=categorical_features)\n",
+        "print(combined_one_hot.shape)\n",
+        "export_csv= combined_one_hot.to_csv(r'/gdrive/My Drive/CIS508/5/combined_one_hot.csv')"
+      ],
+      "execution_count": 21,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "['Sex', 'Status', 'Car_Owner', 'Paymethod', 'LocalBilltype', 'LongDistanceBilltype']\n",
+            "(2070, 30)\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "EIsSdhbhR-zF",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "X_train2, X_test2, y_train2, y_test2 = train_test_split(combined_one_hot.drop(columns=[\"TARGET\"]), combined_one_hot[\"TARGET\"], test_size=0.20, random_state=42)\n",
+        "print('Training dataset shape:', X_train2.shape, y_train2)\n",
+        "print('Testing dataset shape:', X_test2.shape, y_test2)"
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "1tf8awJn4Tm1",
+        "colab_type": "code",
+        "outputId": "d9a8ba42-1e8d-4e26-fede-99e3f7ac9ee6",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 255
+        }
+      },
+      "source": [
+        "#Construct a Random Forest Classifier on text data\n",
+        "clf=RandomForestClassifier()\n",
+        "RF_text = clf.fit(X_train2,y_train2)\n",
+        "print(\"Accuracy score (training): {0:.6f}\".format(clf.score(X_test2, y_test2)))\n",
+        "rf_predictions = clf.predict(X_test2)\n",
+        "print(\"Confusion Matrix:\")\n",
+        "print(confusion_matrix(y_test2, rf_predictions))\n",
+        "print(\"Classification Report\")\n",
+        "print(classification_report(y_test2, rf_predictions))"
+      ],
+      "execution_count": 23,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "Accuracy score (training): 0.840580\n",
+            "Confusion Matrix:\n",
+            "[[128  29]\n",
+            " [ 37 220]]\n",
+            "Classification Report\n",
+            "              precision    recall  f1-score   support\n",
+            "\n",
+            "   Cancelled       0.78      0.82      0.80       157\n",
+            "     Current       0.88      0.86      0.87       257\n",
+            "\n",
+            "    accuracy                           0.84       414\n",
+            "   macro avg       0.83      0.84      0.83       414\n",
+            "weighted avg       0.84      0.84      0.84       414\n",
+            "\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    }
+  ]
+}
